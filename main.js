@@ -12,7 +12,6 @@ async function init() {
     return;
   }
 
-  resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
 
   // Set the viewport to match the canvas resolution
@@ -53,6 +52,8 @@ async function init() {
   gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 4*5, 4*3);
   gl.enableVertexAttribArray(positionAttributeLocation);
   gl.enableVertexAttribArray(uvAttributeLocation);
+
+  resizeCanvas();
 
   // Render the scene
   render();
