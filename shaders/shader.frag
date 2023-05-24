@@ -8,6 +8,68 @@ uniform float aspect;
 in vec2 uv;
 out vec4 frag_colour;
 
+float hash( uint n ) 
+{   // integer hash copied from Hugo Elias
+	n = (n<<13U)^n; 
+    n = n*(n*n*15731U+789221U)+1376312589U;
+    return float(n&uvec3(0x0fffffffU))/float(0x0fffffff);
+}
+
+vec2 random2f(vec2 p) {
+  return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);
+}
+
+vec2 random2f(ivec2 p) {
+  uint x = uint(p.x);
+  uint y = uint(p.y);
+  return vec2(hash(x + y * 123123799u), hash(x + y + 123124117u));
+}
+
+float voronoiDistance( in vec2 x )
+{
+    ivec2 p = ivec2(floor( x ));
+    vec2  f = fract( x );
+
+    ivec2 mb;
+    vec2 mr;
+
+    float res = 8.0;
+    for( int j=-1; j<=1; j++ )
+    for( int i=-1; i<=1; i++ )
+    {
+        ivec2 b = ivec2(i, j);
+        vec2  r = vec2(b) + random2f(p+b)-f;
+        float d = dot(r,r);
+
+        if( d < res )
+        {
+            res = d;
+            mr = r;
+            mb = b;
+        }
+    }
+
+    res = 8.0;
+    for( int j=-2; j<=2; j++ )
+    for( int i=-2; i<=2; i++ )
+    {
+        ivec2 b = mb + ivec2(i, j);
+        vec2  r = vec2(b) + random2f(p+b) - f;
+        float d = dot(0.5*(mr+r), normalize(r-mr));
+
+        res = min( res, d );
+    }
+
+    return res;
+}
+
+float getBorder( in vec2 p )
+{
+    float d = voronoiDistance( p );
+
+    return 1.0 - smoothstep(0.0,0.05,d);
+}
+
 //	Classic Perlin 3D Noise 
 //	by Stefan Gustavson
 //
@@ -95,21 +157,21 @@ vec4 acolour(float t) {
 }
 
 void main() {
-    // frag_colour = vec4(mod(time, 1.0), 0.0, 1.0, 1.0);
+  vec2 uvp = uv + cnoise(vec3(uv*10.0, time * 0.05)) * 0.04 + cnoise(vec3(uv*2.0, time * 0.05)) * 0.1 - vec2(time,time) * 0.03;
 
-    vec2 xy = vec2(uv.x*aspect, uv.y);
+  vec4 water_colour = vec4(0.2, 0.6, 1.0, 1.0);
+  vec4 foam_colour = vec4(0.7, 0.8, 1.0, 1.0);
 
-    float bw = 0.05;
-    float tc = time * 0.8;
-    float h = cnoise(vec3(mod(time/10.0 * time/10.0, 200.0)*xy, 0.2 * time));
-    float c1 = mod(tc, 1.0);
-    float c2 = mod((tc + bw), 1.0);
+  float d = getBorder(uvp * 3.0);
+  // float d = voronoiDistance(uv * 10.0);
 
-    h = (h + 1.0) / 2.0;
+  frag_colour = vec4(d, d, d, 1.0);
 
-    if (h > 0.5) {
-        frag_colour = acolour(mod(h + tc, 1.0));
-    } else {
-        frag_colour = vec4(0., 0, 0, 1);
-    }
+  if (d > 0.1) {
+    frag_colour = foam_colour;
+  } else {
+    frag_colour = water_colour;
+  }
 }
+
+// maybe you could warp based on the distance
