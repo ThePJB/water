@@ -25,6 +25,11 @@ vec2 random2f(ivec2 p) {
   return vec2(hash(x + y * 123123799u), hash(x + y + 123124117u));
 }
 
+float smin(float a, float b, float k) {
+    float h = clamp(0.5 + 0.5*(a-b)/k, 0.0, 1.0);
+    return mix(a, b, h) - k*h*(1.0-h);
+}
+
 float voronoiDistance( in vec2 x )
 {
     ivec2 p = ivec2(floor( x ));
@@ -57,17 +62,11 @@ float voronoiDistance( in vec2 x )
         vec2  r = vec2(b) + random2f(p+b) - f;
         float d = dot(0.5*(mr+r), normalize(r-mr));
 
+        // res = smin( res, d, 0.05 );
         res = min( res, d );
     }
 
     return res;
-}
-
-float getBorder( in vec2 p )
-{
-    float d = voronoiDistance( p );
-
-    return 1.0 - smoothstep(0.0,0.05,d);
 }
 
 //	Classic Perlin 3D Noise 
@@ -157,17 +156,20 @@ vec4 acolour(float t) {
 }
 
 void main() {
-  vec2 uvp = uv + cnoise(vec3(uv*10.0, time * 0.05)) * 0.04 + cnoise(vec3(uv*2.0, time * 0.05)) * 0.1 - vec2(time,time) * 0.03;
+  // oh but its not exactly varying the direction its just warping it more or less in x and y. calc extra and normalize.
+  vec2 uvp = uv + cnoise(vec3(uv*10.0, time * 0.05)) * 0.04 + cnoise(vec3(uv*2.0 + 1000.0, time * 0.05)) * 0.1 - vec2(time,time) * 0.03;
+  // vec2 uvp = uv * (1.0 + cnoise(vec3(uv*10.0, time * 0.05)) * 0.1) * (1.0 + cnoise(vec3(uv*2.0, time * 0.05)) * 0.2) - vec2(time,time) * 0.03;
+
+  uvp = uvp * 10.0;
 
   vec4 water_colour = vec4(0.2, 0.6, 1.0, 1.0);
   vec4 foam_colour = vec4(0.7, 0.8, 1.0, 1.0);
 
-  float d = getBorder(uvp * 3.0);
+  float d = voronoiDistance(uvp * 3.0);
   // float d = voronoiDistance(uv * 10.0);
 
-  frag_colour = vec4(d, d, d, 1.0);
 
-  if (d > 0.1) {
+  if (d < 0.025) {
     frag_colour = foam_colour;
   } else {
     frag_colour = water_colour;
